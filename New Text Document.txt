@@ -1,0 +1,97 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <unistd.h>
+
+#define NUM_RESOURCES 3
+
+// Available resources
+int available[NUM_RESOURCES] = {10, 5, 7};
+
+// Maximum demand of each thread
+int** maximum;
+
+// Allocated resources for each thread
+int** allocated;
+
+// Need of each thread
+int** need;
+
+// Mutex locks for shared resources
+pthread_mutex_t lock_available;
+pthread_mutex_t** lock_allocated;
+pthread_mutex_t** lock_need;
+
+// Functions for banker's algorithm
+bool request_resources(int thread_num, int* request);
+void release_resources(int thread_num);
+
+// Thread function
+void* thread_func(void* arg) {
+    int thread_num = *(int*)arg;
+    int request[NUM_RESOURCES];
+    
+    while(true) {
+        // Generate random request for resources
+        for(int i = 0; i < NUM_RESOURCES; i++) {
+            request[i] = rand() % (maximum[thread_num][i] - allocated[thread_num][i] + 1);
+        }
+        
+        // Try to request resources
+        if(request_resources(thread_num, request)) {
+            printf("Thread %d: resources allocated\n", thread_num);
+            sleep(1);
+            release_resources(thread_num);
+            printf("Thread %d: resources released\n", thread_num);
+            sleep(1);
+        } else {
+            printf("Thread %d: resources not allocated\n", thread_num);
+            sleep(1);
+        }
+    }
+}
+
+int main() {
+    int num_threads;
+    printf("Enter number of threads to create: ");
+    scanf("%d", &num_threads);
+    
+    // Allocate memory for maximum, allocated, and need matrices
+    maximum = (int**)malloc(num_threads * sizeof(int*));
+    allocated = (int**)malloc(num_threads * sizeof(int*));
+    need = (int**)malloc(num_threads * sizeof(int*));
+    lock_allocated = (pthread_mutex_t**)malloc(num_threads * sizeof(pthread_mutex_t*));
+    lock_need = (pthread_mutex_t**)malloc(num_threads * sizeof(pthread_mutex_t*));
+    
+    for(int i = 0; i < num_threads; i++) {
+        maximum[i] = (int*)malloc(NUM_RESOURCES * sizeof(int));
+        allocated[i] = (int*)malloc(NUM_RESOURCES * sizeof(int));
+        need[i] = (int*)malloc(NUM_RESOURCES * sizeof(int));
+        lock_allocated[i] = (pthread_mutex_t*)malloc(NUM_RESOURCES * sizeof(pthread_mutex_t));
+        lock_need[i] = (pthread_mutex_t*)malloc(NUM_RESOURCES * sizeof(pthread_mutex_t));
+        
+        for(int j = 0; j < NUM_RESOURCES; j++) {
+            maximum[i][j] = rand() % (available[j] + 1);
+            allocated[i][j] = 0;
+            need[i][j] = maximum[i][j];
+            pthread_mutex_init(&lock_allocated[i][j], NULL);
+            pthread_mutex_init(&lock_need[i][j], NULL);
+        }
+    }
+    
+    // Initialize mutex locks for available resources
+    pthread_mutex_init(&lock_available, NULL);
+    
+    // Create threads
+    pthread_t threads[num_threads];
+    int thread_nums[num_threads];
+    
+    for(int i = 0; i < num_threads; i++) {
+        thread_nums[i] = i;
+        pthread_create(&threads[i], NULL, thread_func, &thread_nums[i]);
+    }
+    
+    // Wait for threads to finish
+    for(int i = 0; i < num_threads; i++) {
+        pthread_join
